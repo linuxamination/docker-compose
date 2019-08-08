@@ -1,0 +1,77 @@
+version: '2.0'
+services:
+  db:
+    build: docker-configs/dockerfiles/db/
+    ports:
+      - 3307:3306
+    volumes:
+      - /docker-configs/db/logs:/var/logs/mysql/logs
+      - /docker-configs/db/configs:/etc/mysql/conf.d
+      - mysql-data-store:/var/lib/mysql
+      - .:/workspace
+    environment:
+          MYSQL_ROOT_PASSWORD: AtomQwEr98
+          MYSQL_USER: atomuser
+          MYSQL_PASSWORD: ZxCvAtom
+          MYSQL_DATABASE: atomdb
+    networks:
+      - laravel
+
+  ruby:
+      build: docker-configs/dockerfiles/ruby/
+      volumes:
+        - .:/atom
+        - "gem-path:/usr/local/bundle"
+      links:
+        - db
+      networks:
+        - laravel
+
+  memcache:
+    image: memcached:latest
+    networks:
+      - laravel
+
+  redis:
+    image: redis:latest
+    networks:
+      - laravel
+
+  php:
+    build: docker-configs/dockerfiles/php
+    expose:
+      - "9000"
+    volumes:
+      - ./:/app
+    networks:
+      - laravel
+    depends_on:
+      - db
+      - memcache
+      - redis
+      - ruby
+    networks:
+      - laravel
+
+  web:
+    image: nginx:latest
+    environment:
+          - BUNDLE_PATH=/gem_path
+    volumes:
+      - ./:/app
+    ports:
+      - "80:80"
+    depends_on:
+      - php
+    networks:
+      laravel:
+        aliases:
+          - atomaiml.ai
+
+volumes:
+  mysql-data-store:
+  gem-path:
+
+networks:
+  laravel:
+    driver: bridge
